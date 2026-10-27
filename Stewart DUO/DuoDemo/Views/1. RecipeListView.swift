@@ -1,0 +1,94 @@
+//
+// RecipeListView.swift
+// DuoDemo
+//
+// Created by MANAS VIJAYWARGIYA on 27/10/26.
+// ------------------------------------------------------------------------
+// Copyright © 2026 BLACENOVA. All rights reserved.
+// ------------------------------------------------------------------------
+//
+
+import SwiftUI
+
+struct RecipeListView: View {
+  @Environment(RecipeStore.self) private var store
+  @State private var searchText = ""
+  @State private var showingAdd = false
+  @State private var recipeToEdit: Recipe?
+  @State private var selectedID: Recipe.ID?
+  
+  private var filtered: [Recipe] {
+    guard !searchText.isEmpty else { return store.recipes }
+    return store.recipes.filter {
+      $0.name.localizedCaseInsensitiveContains(searchText) ||
+      $0.cuisine.localizedCaseInsensitiveContains(searchText)
+    }
+  }
+  
+  var body: some View {
+    NavigationSplitView {
+      List(filtered, selection: $selectedID) { recipe in
+        RecipeRow(recipe: recipe).tag(recipe.id)
+        // Leading edge
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+          Button("Favorite", systemImage: "heart") {
+            store.toggleFavorite(recipe)
+          }
+          .tint(.pink)
+          Button("Pin", systemImage: "pin") {
+            print("Pin \(recipe.name)")
+          }
+          .tint(.orange)
+        }
+        // Trailing edge
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+          Button("Delete", systemImage: "trash", role: .destructive) {
+            store.delete(recipe)
+          }
+          Button("Edit", systemImage: "pencil") {
+            recipeToEdit = recipe
+          }
+          .tint(.blue)
+          Button("Share", systemImage: "square.and.arrow.up") {
+            print("Share \(recipe.name)")
+          }
+          .tint(.green)
+        }
+      }
+      .navigationTitle("Recipes")
+      .navigationDestination(for: Recipe.self) { recipe in
+        RecipeDetailView(recipe: recipe)
+      }
+      .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search recipes")
+      .overlay {
+        if filtered.isEmpty {
+          ContentUnavailableView.search(text: searchText)
+        }
+      }
+      .toolbar {
+        RecipeListToolbar(showingAdd: $showingAdd)
+      }
+      .sheet(isPresented: $showingAdd) {
+        RecipeFormView()
+      }
+      .sheet(item: $recipeToEdit) { recipe in
+        RecipeFormView(recipe: recipe)
+      }
+    } detail: {
+      if let recipe = store.recipes.first(where: { $0.id == selectedID }) {
+        RecipeDetailView(recipe: recipe)
+      } else {
+        ContentUnavailableView(
+          "Select a recipe",
+          systemImage: "fork.knife",
+          description: Text("Choose a recipe from the list to see its details.")
+        )
+      }
+    }
+  }
+}
+
+#Preview {
+  RecipeListView()
+    .environment(RecipeStore())
+}
